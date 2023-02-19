@@ -5,20 +5,57 @@
 //
 
 #include "MFLCDDisplay.h"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Fonts/FreeMono12pt7b.h>
+
+#define SCREEN_WIDTH  128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32  // OLED display height, in pixels
+
+#define FONT_HEIGHT 16
+#define FONT_WIDTH  12
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+// The pins for I2C are defined by the Wire-library.
+// On an arduino UNO:       A4(SDA), A5(SCL)
+// On an arduino MEGA 2560: 20(SDA), 21(SCL)
+// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
+#define OLED_RESET     -1   // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+
+#define TCA9548A_I2C_ADDRESS 0x70
 
 MFLCDDisplay::MFLCDDisplay()
+    : _lcdDisplay(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET)
 {
     _initialized = false;
+}
+
+void setTCAChannel(byte i)
+{
+    Wire.beginTransmission(TCA9548A_I2C_ADDRESS);
+    Wire.write(1 << i);
+    Wire.endTransmission();
 }
 
 void MFLCDDisplay::display(const char *string)
 {
     if (!_initialized)
         return;
-    for (uint8_t line = 0; line != _lines; line++) {
-        _lcdDisplay.setCursor(0, line);
-        _lcdDisplay.writeString(&string[line * _cols], _cols);
-    }
+
+    setTCAChannel((int)(_address % SCREEN_ADDRESS));
+    _lcdDisplay.clearDisplay();
+    _lcdDisplay.setTextColor(SSD1306_WHITE);
+    // _lcdDisplay.setTextSize(1);
+    // _lcdDisplay.setCursor(0, 0);
+    // _lcdDisplay.print("ALT");
+    // _lcdDisplay.setCursor(0, 16);
+    // _lcdDisplay.print("V/S");
+
+    _lcdDisplay.setTextSize(2);
+    _lcdDisplay.setCursor(0, 0);
+    _lcdDisplay.print(string);
+    _lcdDisplay.display();
 }
 
 void MFLCDDisplay::attach(byte address, byte cols, byte lines)
@@ -27,8 +64,8 @@ void MFLCDDisplay::attach(byte address, byte cols, byte lines)
     _cols        = cols;
     _lines       = lines;
     _initialized = true;
-    _lcdDisplay.init((uint8_t)address, (uint8_t)cols, (uint8_t)lines);
-    _lcdDisplay.backlight();
+
+    _lcdDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
     Wire.setClock(400000);
     test();
 }
@@ -43,28 +80,14 @@ void MFLCDDisplay::detach()
 void MFLCDDisplay::powerSavingMode(bool state)
 {
     if (state)
-        _lcdDisplay.noBacklight();
+        _lcdDisplay.dim(true);
     else
-        _lcdDisplay.backlight();
+        _lcdDisplay.dim(false);
 }
 
 void MFLCDDisplay::test()
 {
-    if (!_initialized)
-        return;
-    uint8_t preLines = 0;
-    _lcdDisplay.clear();
-
-    if (_lines > 2) {
-        preLines = (_lines / 2) - 1; // floor needs much Flash and for integer it's the same
-    }
-
-    _printCentered("MobiFlight", preLines++);
-    if (_lines > 1) {
-        _printCentered("Rocks!", preLines++);
-    }
-
-    _lcdDisplay.setCursor(0, 0);
+    display("MobiFlight   Rocks!");
 }
 
 void MFLCDDisplay::_printCentered(const char *str, uint8_t line)
@@ -77,11 +100,9 @@ void MFLCDDisplay::_printCentered(const char *str, uint8_t line)
         printChar = strlen(str);
     }
 
-    _lcdDisplay.setCursor(startCol, line);
+    _lcdDisplay.setCursor(startCol * FONT_WIDTH, line * FONT_HEIGHT);
 
-    for (uint8_t i = 0; i < printChar; i++) {
-        _lcdDisplay.write(str[i]);
-    }
+    _lcdDisplay.print(str);
 }
 
 // MFLCDDisplay.cpp

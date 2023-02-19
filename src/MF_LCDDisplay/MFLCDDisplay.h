@@ -7,7 +7,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <LiquidCrystal_I2C.h>
+#include <Adafruit_SSD1306.h>
 
 class MFLCDDisplay
 {
@@ -20,13 +20,13 @@ public:
     void powerSavingMode(bool state);
 
 private:
-    LiquidCrystal_I2C _lcdDisplay;
-    bool              _initialized;
-    byte              _address;
-    byte              _cols;
-    byte              _lines;
+    Adafruit_SSD1306 _lcdDisplay;
+    bool             _initialized;
+    byte             _address;
+    byte             _cols;
+    byte             _lines;
 
-    void              _printCentered(const char *str, uint8_t line);
+    void _printCentered(const char *str, uint8_t line);
 };
 
 // MFLCDDisplay.h
